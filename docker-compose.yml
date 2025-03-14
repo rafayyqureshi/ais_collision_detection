@@ -1,0 +1,57 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+  ais-ml-dev:
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    volumes:
+      - ./:/app
+    ports:
+      - "8888:8888"  # Jupyter Notebook
+      - "6006:6006"  # TensorBoard
+    environment:
+      - NVIDIA_VISIBLE_DEVICES=all
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+  mlflow:
+    image: mlflow:latest
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./mlflow:/mlflow
+    command: mlflow server --backend-store-uri sqlite:///mlflow/mlflow.db --default-artifact-root ./mlflow/artifacts --host 0.0.0.0
+    
+  postgres:
+    image: postgres:13
+    environment:
+      - POSTGRES_USER=ais_user
+      - POSTGRES_PASSWORD=ais_password
+      - POSTGRES_DB=ais_data
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      
+  minio:
+    image: minio/minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    volumes:
+      - minio_data:/data
+    environment:
+      - MINIO_ROOT_USER=ais_admin
+      - MINIO_ROOT_PASSWORD=ais_password
+    command: server /data --console-address ":9001"
+
+volumes:
+  postgres_data:
+  minio_data:
